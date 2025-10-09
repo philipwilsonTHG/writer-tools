@@ -36,6 +36,54 @@ product_data = get_product_json(product_ids[0])
 set_output(product_data)
 ```
 
+## Common Patterns
+
+### Fetching Product IDs from a PLP URL
+
+This pattern fetches product IDs from a Product List Page (PLP) URL stored in agent state, saves them back to state, and returns them as output:
+
+```python
+from horizon_fetcher import fetch_product_ids
+
+# Get PLP URL from agent state
+product_ids = fetch_product_ids(state['plp_url'], 100)
+
+# Store in state for use in subsequent blocks
+state['product_id_list'] = product_ids
+
+# Return to agent
+set_output(product_ids)
+```
+
+**Use case:** The agent collects a category URL from the user (e.g., `https://www.myprotein.com/c/nutrition/protein/whey-protein/`), fetches all product IDs from that page, stores them in state for later processing, and returns the list to display or use in subsequent blueprint blocks.
+
+### Fetching Product Details with Fallback
+
+This pattern retrieves detailed product data for a specific product ID, with a fallback to a default product if no ID is provided in state:
+
+```python
+from horizon_fetcher import get_product_json
+
+# Check if product ID is in state, otherwise use default
+if "item_to_fetch" in state:
+    product_id = state["item_to_fetch"]
+else:
+    product_id = 10530943
+
+try:
+    # Ensure product_id is an integer
+    product_id = int(product_id)
+    product_json = get_product_json(product_id)
+    set_output(product_json)
+
+except Exception as e:
+    logger.info(f"Error: {e}")
+```
+
+**Use case:** The agent fetches full product details (title, variants, images, content fields) for a specific product. If the user or a previous blueprint block has set `item_to_fetch` in state, it uses that product ID; otherwise, it falls back to a default product for demonstration or testing purposes.
+
+**Error handling:** Wraps the API call in a try-except block to handle invalid product IDs, network errors, or API issues gracefully by logging the error.
+
 ## Core Functions
 
 ### `fetch_product_ids(url_or_search_term, limit=100)`
