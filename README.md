@@ -212,10 +212,12 @@ else:
 
 Common THG e-commerce sites:
 - `www.myprotein.com`
+- `www.myprotein.jp`
+- `www.myvitamins.com`
 - `www.lookfantastic.com`
-- `www.glossybox.com`
-- `www.mankind.co.uk`
-- `www.thehut.com`
+- `www.cultbeauty.co.uk`
+- `www.dermstore.com`
+
 
 Use `get_rocinante_subsites()` to fetch the complete list.
 
