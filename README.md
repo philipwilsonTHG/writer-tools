@@ -1,0 +1,339 @@
+# Horizon API Python Utilities for Writer Agents
+
+Python utilities for querying the Horizon GraphQL API from Writer AI Studio agent code blocks. These tools simplify product data retrieval from THG e-commerce subsites (MyProtein, Lookfantastic, etc.).
+
+## Overview
+
+The Horizon API is THG's enterprise e-commerce platform GraphQL API. These utilities provide easy-to-use Python functions for:
+
+- Searching for products by keyword
+- Fetching product lists from category pages
+- Retrieving detailed product information
+- Executing custom GraphQL queries
+
+## Quick Start
+
+### 1. Upload to Writer Agent Builder
+
+In your Writer agent's code editor:
+1. Upload `horizon_client.py`
+2. Upload `horizon_fetcher.py`
+
+### 2. Use in Python Code Blocks
+
+Add a Python code block to your agent blueprint and import the utilities:
+
+```python
+from horizon_fetcher import fetch_product_ids, get_product_json
+
+# Search for products
+product_ids = fetch_product_ids("whey protein", limit=50)
+
+# Get detailed product data
+product_data = get_product_json(product_ids[0])
+
+# Return to agent
+set_output(product_data)
+```
+
+## Core Functions
+
+### `fetch_product_ids(url_or_search_term, limit=100)`
+
+Auto-detects whether input is a URL or search term and returns matching product IDs.
+
+**Examples:**
+
+```python
+# Search by keyword
+product_ids = fetch_product_ids("protein powder")
+
+# Fetch from category URL
+product_ids = fetch_product_ids("https://www.myprotein.com/c/nutrition/protein/whey-protein/")
+
+# Limit results
+product_ids = fetch_product_ids("creatine", limit=20)
+```
+
+**Returns:** List of product IDs (integers)
+
+### `get_product_json(product_id, subsite='www.myprotein.com')`
+
+Fetches complete product data including title, content fields, variants, and images.
+
+**Example:**
+
+```python
+product_data = get_product_json(12345678, "www.myprotein.com")
+```
+
+**Returns:** JSON string with full product details
+
+### `get_product_list(product_list_path, subsite='www.myprotein.com')`
+
+Fetches products from a category/collection page.
+
+**Example:**
+
+```python
+# Remove /c prefix from URL path
+response = get_product_list("nutrition/protein/whey-protein/", "www.myprotein.com")
+```
+
+**Returns:** JSON string with product list data
+
+### `get_search_results(search_term, subsite='www.myprotein.com', limit=100)`
+
+Searches for products using Horizon's search API.
+
+**Example:**
+
+```python
+response = get_search_results("vitamin c", "www.lookfantastic.com", limit=30)
+```
+
+**Returns:** JSON string with search results
+
+### `query_horizon(query, subsite='www.myprotein.com')`
+
+Executes custom GraphQL queries against the Horizon API.
+
+**Example:**
+
+```python
+custom_query = """
+query {
+  product(sku: 11234482, strict: false) {
+    sku
+    title
+    variants {
+      sku
+      title
+      inStock
+    }
+  }
+}
+"""
+result = query_horizon(custom_query, "www.myprotein.com")
+```
+
+**Returns:** JSON string response
+
+### `get_rocinante_subsites()`
+
+Fetches list of available THG subsites from Rocinante API.
+
+**Example:**
+
+```python
+subsites = get_rocinante_subsites()
+```
+
+**Returns:** JSON array of subsite data
+
+## Working with Agent State
+
+Access state variables and return results to your agent:
+
+```python
+from horizon_fetcher import fetch_product_ids, get_product_json
+import json
+
+# Get user input from agent state
+user_query = state.get("search_query", "protein")
+target_site = state.get("site", "www.myprotein.com")
+max_results = state.get("max_products", 10)
+
+# Fetch products
+logger.info(f"Searching for '{user_query}' on {target_site}")
+product_ids = fetch_product_ids(user_query, limit=max_results)
+
+# Get details for first product
+if product_ids:
+    product_json = get_product_json(product_ids[0], target_site)
+    product = json.loads(product_json)
+
+    logger.info(f"Found product: {product['data']['product']['title']}")
+    set_output(product)
+else:
+    logger.warning("No products found")
+    set_output({"error": "No products found"})
+```
+
+## Supported Subsites
+
+Common THG e-commerce sites:
+- `www.myprotein.com`
+- `www.lookfantastic.com`
+- `www.glossybox.com`
+- `www.mankind.co.uk`
+- `www.thehut.com`
+
+Use `get_rocinante_subsites()` to fetch the complete list.
+
+## Data Formats
+
+### Product ID Extraction
+
+Product IDs are extracted from Horizon URLs using the pattern:
+```
+/p/category/product-name/{product_id}/
+```
+
+### GraphQL Query Defaults
+
+All queries use these defaults:
+- **Currency:** GBP
+- **Shipping Destination:** GB
+- **Sort:** RELEVANCE
+- **Limit:** 100 (configurable)
+
+Modify the query builder functions in `horizon_fetcher.py` to change these defaults.
+
+## Error Handling
+
+The utilities print errors to stderr and return empty lists when:
+- No products found
+- Invalid URL format
+- JSON parsing errors
+- API errors
+
+Add error handling in your code blocks:
+
+```python
+from horizon_fetcher import fetch_product_ids
+
+try:
+    product_ids = fetch_product_ids(state.get("query"))
+
+    if not product_ids:
+        set_output({"status": "error", "message": "No products found"})
+    else:
+        set_output({"status": "success", "product_ids": product_ids})
+
+except Exception as e:
+    logger.error(f"Error fetching products: {e}")
+    set_output({"status": "error", "message": str(e)})
+```
+
+## Advanced Usage
+
+### Custom GraphQL Queries
+
+Build custom queries for specific data needs:
+
+```python
+from horizon_client import query_horizon
+
+# Fetch only specific fields
+query = """
+query {
+  search(
+    options: {
+      currency: GBP
+      shippingDestination: GB
+      limit: 5
+    }
+    query: "creatine"
+  ) {
+    total
+    products {
+      url
+      title
+      sku
+      price {
+        rrp
+        price
+      }
+    }
+  }
+}
+"""
+
+result = query_horizon(query, "www.myprotein.com")
+```
+
+### Processing Multiple Subsites
+
+Fetch products across multiple sites:
+
+```python
+from horizon_fetcher import fetch_product_ids
+import json
+
+sites = ["www.myprotein.com", "www.lookfantastic.com"]
+search_term = "vitamin d"
+all_results = {}
+
+for site in sites:
+    product_ids = fetch_product_ids(search_term, limit=10)
+    all_results[site] = product_ids
+    logger.info(f"{site}: {len(product_ids)} products")
+
+set_output(all_results)
+```
+
+## Limitations
+
+- **No Package Installation:** Writer agents only support pre-installed packages (pandas, requests, numpy). This codebase only requires `requests` and standard library modules.
+- **Rate Limiting:** Horizon API implements rate limiting. Handle potential CAPTCHA or throttling errors.
+- **Hardcoded Defaults:** Currency (GBP) and shipping (GB) are hardcoded in query builders. Modify source code to change these.
+
+## Documentation
+
+- **Horizon API:** https://horizondocs.thgaltitude.com/guides/guide/
+- **Writer Python Code:** https://dev.writer.com/agent-builder/python-code
+- **Writer Agent Builder:** https://dev.writer.com/agent-builder/quickstart
+
+## Example: Complete Agent Code Block
+
+```python
+from horizon_fetcher import fetch_product_ids, get_product_json, extract_product_ids_from_search
+import json
+
+# Get user's search query from agent state
+query = state.get("user_query", "protein powder")
+num_results = state.get("num_results", 5)
+
+logger.info(f"Searching Horizon API for: {query}")
+
+# Search for products
+product_ids = fetch_product_ids(query, limit=num_results)
+
+if not product_ids:
+    set_output({
+        "status": "no_results",
+        "message": f"No products found for '{query}'"
+    })
+else:
+    # Fetch details for all products
+    products = []
+    for pid in product_ids[:num_results]:
+        try:
+            product_json = get_product_json(pid)
+            product_data = json.loads(product_json)
+
+            # Extract key fields
+            product = product_data['data']['product']
+            products.append({
+                "sku": product['sku'],
+                "title": product['title'],
+                "variants": len(product.get('variants', []))
+            })
+        except Exception as e:
+            logger.error(f"Error fetching product {pid}: {e}")
+
+    logger.info(f"Successfully fetched {len(products)} products")
+    set_output({
+        "status": "success",
+        "count": len(products),
+        "products": products
+    })
+```
+
+## Support
+
+For issues with:
+- **Horizon API:** See https://horizondocs.thgaltitude.com
+- **Writer Agents:** See https://dev.writer.com
+- **This Code:** Review source code in `horizon_client.py` and `horizon_fetcher.py`
