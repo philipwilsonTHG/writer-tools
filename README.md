@@ -86,7 +86,7 @@ except Exception as e:
 
 ## Core Functions
 
-### `get_product_ids(url_or_search_term, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE')`
+### `get_product_ids(url_or_search_term, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE', subsite='www.myprotein.com')`
 
 Auto-detects whether input is a URL or search term and returns matching product IDs.
 
@@ -104,6 +104,9 @@ product_ids = get_product_ids("creatine", limit=20)
 
 # Use pagination and custom currency
 product_ids = get_product_ids("whey protein", limit=50, offset=50, currency='USD', shippingDestination='US')
+
+# Search on a different subsite
+product_ids = get_product_ids("vitamins", subsite='www.lookfantastic.com', limit=10)
 ```
 
 **Returns:** List of product IDs (integers)
