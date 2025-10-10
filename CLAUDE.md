@@ -20,7 +20,7 @@ The codebase consists of two main modules:
   - Provides functions to fetch products by ID, product list path, or search term
   - GraphQL query builders for different query types (product, product list, search)
   - Extraction utilities to parse product IDs from API responses (regex-based URL parsing)
-  - `fetch_product_ids()`: Main entry point that auto-detects URL vs search term input
+  - `get_product_ids()`: Main entry point that auto-detects URL vs search term input
 
 ## Key Patterns
 
@@ -55,14 +55,14 @@ Note: Writer agents cannot install additional Python packages beyond the pre-ins
 ### Usage Pattern
 
 ```python
-from horizon_fetcher import fetch_product_ids, get_product_json
+from horizon_fetcher import get_product_ids, get_product_json
 from horizon_client import query_horizon, get_rocinante_subsites
 
 # Fetch product IDs from a category URL
-product_ids = fetch_product_ids("https://www.myprotein.com/c/nutrition/protein/whey-protein/")
+product_ids = get_product_ids("https://www.myprotein.com/c/nutrition/protein/whey-protein/")
 
 # Or search for products by keyword
-product_ids = fetch_product_ids("whey protein", limit=50)
+product_ids = get_product_ids("whey protein", limit=50)
 
 # Fetch detailed product data by SKU
 product_data = get_product_json(product_ids[0], "www.myprotein.com")
@@ -88,14 +88,14 @@ Writer Python code blocks have access to:
 
 Example with state:
 ```python
-from horizon_fetcher import fetch_product_ids
+from horizon_fetcher import get_product_ids
 
 # Get search term from agent state
 search_term = state.get("user_query", "protein powder")
 subsite = state.get("target_site", "www.myprotein.com")
 
 # Fetch products
-product_ids = fetch_product_ids(search_term, limit=50)
+product_ids = get_product_ids(search_term, limit=50)
 
 # Log for debugging
 logger.info(f"Found {len(product_ids)} products for '{search_term}'")

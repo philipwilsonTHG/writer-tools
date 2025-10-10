@@ -24,10 +24,10 @@ In your Writer agent's code editor (Little `> Code` button on the bottom left):
 Add a Python code block to your agent blueprint and import the utilities:
 
 ```python
-from horizon_fetcher import fetch_product_ids, get_product_json
+from horizon_fetcher import get_product_ids, get_product_json
 
 # Search for products
-product_ids = fetch_product_ids("whey protein", limit=50)
+product_ids = get_product_ids("whey protein", limit=50)
 
 # Get detailed product data
 product_data = get_product_json(product_ids[0])
@@ -43,10 +43,10 @@ set_output(product_data)
 This pattern fetches product IDs from a Product List Page (PLP) URL stored in agent state, saves them back to state, and returns them as output:
 
 ```python
-from horizon_fetcher import fetch_product_ids
+from horizon_fetcher import get_product_ids
 
 # Get PLP URL from agent state
-product_ids = fetch_product_ids(state['plp_url'], 100)
+product_ids = get_product_ids(state['plp_url'], 100)
 
 # Store in state for use in subsequent blocks
 state['product_id_list'] = product_ids
@@ -86,7 +86,7 @@ except Exception as e:
 
 ## Core Functions
 
-### `fetch_product_ids(url_or_search_term, limit=100)`
+### `get_product_ids(url_or_search_term, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE')`
 
 Auto-detects whether input is a URL or search term and returns matching product IDs.
 
@@ -94,13 +94,16 @@ Auto-detects whether input is a URL or search term and returns matching product 
 
 ```python
 # Search by keyword
-product_ids = fetch_product_ids("protein powder")
+product_ids = get_product_ids("protein powder")
 
 # Fetch from category URL
-product_ids = fetch_product_ids("https://www.myprotein.com/c/nutrition/protein/whey-protein/")
+product_ids = get_product_ids("https://www.myprotein.com/c/nutrition/protein/whey-protein/")
 
 # Limit results
-product_ids = fetch_product_ids("creatine", limit=20)
+product_ids = get_product_ids("creatine", limit=20)
+
+# Use pagination and custom currency
+product_ids = get_product_ids("whey protein", limit=50, offset=50, currency='USD', shippingDestination='US')
 ```
 
 **Returns:** List of product IDs (integers)
@@ -117,27 +120,50 @@ product_data = get_product_json(12345678, "www.myprotein.com")
 
 **Returns:** JSON string with full product details
 
-### `get_product_list(product_list_path, subsite='www.myprotein.com')`
+### `get_product_list(product_list_path, subsite='www.myprotein.com', limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE')`
 
 Fetches products from a category/collection page.
 
-**Example:**
+**Examples:**
 
 ```python
-# Remove /c prefix from URL path
+# Basic usage - Remove /c prefix from URL path
 response = get_product_list("nutrition/protein/whey-protein/", "www.myprotein.com")
+
+# With pagination and custom settings
+response = get_product_list(
+    "nutrition/vitamins/",
+    "www.myprotein.com",
+    limit=50,
+    offset=50,
+    currency='USD',
+    shippingDestination='US',
+    sort='PRICE_LOW_TO_HIGH'
+)
 ```
 
 **Returns:** JSON string with product list data
 
-### `get_search_results(search_term, subsite='www.myprotein.com', limit=100)`
+### `get_search_results(search_term, subsite='www.myprotein.com', limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE')`
 
 Searches for products using Horizon's search API.
 
-**Example:**
+**Examples:**
 
 ```python
+# Basic search
 response = get_search_results("vitamin c", "www.lookfantastic.com", limit=30)
+
+# With pagination and custom currency
+response = get_search_results(
+    "protein powder",
+    "www.myprotein.com",
+    limit=25,
+    offset=25,
+    currency='EUR',
+    shippingDestination='DE',
+    sort='PRICE_HIGH_TO_LOW'
+)
 ```
 
 **Returns:** JSON string with search results
@@ -184,7 +210,7 @@ subsites = get_rocinante_subsites()
 Access state variables and return results to your agent:
 
 ```python
-from horizon_fetcher import fetch_product_ids, get_product_json
+from horizon_fetcher import get_product_ids, get_product_json
 import json
 
 # Get user input from agent state
@@ -194,7 +220,7 @@ max_results = state.get("max_products", 10)
 
 # Fetch products
 logger.info(f"Searching for '{user_query}' on {target_site}")
-product_ids = fetch_product_ids(user_query, limit=max_results)
+product_ids = get_product_ids(user_query, limit=max_results)
 
 # Get details for first product
 if product_ids:
@@ -232,13 +258,14 @@ Product IDs are extracted from Horizon URLs using the pattern:
 
 ### GraphQL Query Defaults
 
-All queries use these defaults:
-- **Currency:** GBP
-- **Shipping Destination:** GB
-- **Sort:** RELEVANCE
-- **Limit:** 100 (configurable)
+All product retrieval functions (`get_product_ids`, `get_product_list`, `get_search_results`) support these configurable parameters:
+- **Currency:** GBP (default) - accepts any currency code (e.g., 'USD', 'EUR', 'JPY')
+- **Shipping Destination:** GB (default) - accepts any country code (e.g., 'US', 'DE', 'JP')
+- **Sort:** RELEVANCE (default) - other options include 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW'
+- **Limit:** 100 (default) - maximum number of results to return
+- **Offset:** 0 (default) - number of results to skip (useful for pagination)
 
-Modify the query builder functions in `horizon_fetcher.py` to change these defaults.
+These can be customized per function call without modifying the source code.
 
 ## Error Handling
 
@@ -251,10 +278,10 @@ The utilities print errors to stderr and return empty lists when:
 Add error handling in your code blocks:
 
 ```python
-from horizon_fetcher import fetch_product_ids
+from horizon_fetcher import get_product_ids
 
 try:
-    product_ids = fetch_product_ids(state.get("query"))
+    product_ids = get_product_ids(state.get("query"))
 
     if not product_ids:
         set_output({"status": "error", "message": "No products found"})
@@ -308,7 +335,7 @@ result = query_horizon(query, "www.myprotein.com")
 Fetch products across multiple sites:
 
 ```python
-from horizon_fetcher import fetch_product_ids
+from horizon_fetcher import get_product_ids
 import json
 
 sites = ["www.myprotein.com", "www.lookfantastic.com"]
@@ -316,7 +343,7 @@ search_term = "vitamin d"
 all_results = {}
 
 for site in sites:
-    product_ids = fetch_product_ids(search_term, limit=10)
+    product_ids = get_product_ids(search_term, limit=10)
     all_results[site] = product_ids
     logger.info(f"{site}: {len(product_ids)} products")
 
@@ -327,7 +354,6 @@ set_output(all_results)
 
 - **No Package Installation:** Writer agents only support pre-installed packages (pandas, requests, numpy). This codebase only requires `requests` and standard library modules.
 - **Rate Limiting:** Horizon API implements rate limiting. Handle potential CAPTCHA or throttling errors.
-- **Hardcoded Defaults:** Currency (GBP) and shipping (GB) are hardcoded in query builders. Modify source code to change these.
 
 ## Documentation
 
@@ -338,7 +364,7 @@ set_output(all_results)
 ## Example: Complete Agent Code Block
 
 ```python
-from horizon_fetcher import fetch_product_ids, get_product_json, extract_product_ids_from_search
+from horizon_fetcher import get_product_ids, get_product_json
 import json
 
 # Get user's search query from agent state
@@ -348,7 +374,7 @@ num_results = state.get("num_results", 5)
 logger.info(f"Searching Horizon API for: {query}")
 
 # Search for products
-product_ids = fetch_product_ids(query, limit=num_results)
+product_ids = get_product_ids(query, limit=num_results)
 
 if not product_ids:
     set_output({

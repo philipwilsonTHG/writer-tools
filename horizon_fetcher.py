@@ -8,22 +8,27 @@ def get_product_json(product_id: int, subsite: str = 'www.myprotein.com'):
     return query_horizon(query, subsite)
 
 
-def get_product_list(product_list_path: str, subsite: str = 'www.myprotein.com'):
+def get_product_list(product_list_path: str, subsite: str = 'www.myprotein.com', limit: int = 100, offset: int = 0, currency: str = 'GBP', shippingDestination: str = 'GB', sort: str = 'RELEVANCE'):
     """
     Fetch product list data from Horizon API.
 
     Args:
         product_list_path: The path to the product list (without /c prefix)
         subsite: The subsite domain
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
+        shippingDestination: Country code for shipping (e.g., 'GB', 'US')
+        sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
 
     Returns:
         JSON response from Horizon API
     """
-    query = get_product_list_query(product_list_path)
+    query = get_product_list_query(product_list_path, limit, offset, currency, shippingDestination, sort)
     return query_horizon(query, subsite)
 
 
-def get_search_results(search_term: str, subsite: str = 'www.myprotein.com', limit: int = 100):
+def get_search_results(search_term: str, subsite: str = 'www.myprotein.com', limit: int = 100, offset: int = 0, currency: str = 'GBP', shippingDestination: str = 'GB', sort: str = 'RELEVANCE'):
     """
     Search for products using Horizon search API.
 
@@ -31,29 +36,41 @@ def get_search_results(search_term: str, subsite: str = 'www.myprotein.com', lim
         search_term: The search query string
         subsite: The subsite domain
         limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
+        shippingDestination: Country code for shipping (e.g., 'GB', 'US')
+        sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
 
     Returns:
         JSON response from Horizon API
     """
-    query = get_search_query(search_term, limit)
+    query = get_search_query(search_term, limit, offset, currency, shippingDestination, sort)
     return query_horizon(query, subsite)
 
 
-def get_product_list_query(product_list_path: str):
+def get_product_list_query(product_list_path: str, limit: int = 100, offset: int = 0, currency: str = 'GBP', shippingDestination: str = 'GB', sort: str = 'RELEVANCE'):
     """
     Build GraphQL query to fetch product URLs from a product list page.
     Simplified query that only requests the url field.
+
+    Args:
+        product_list_path: The path to the product list (without /c prefix)
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
+        shippingDestination: Country code for shipping (e.g., 'GB', 'US')
+        sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
     """
     return f"""query ProductList {{
   page(path: "{product_list_path}") {{
     widgets {{
       ... on ProductListWidget {{
         productList(input: {{
-          currency: GBP
-          shippingDestination: GB
-          limit: 100
-          offset: 0
-          sort: RELEVANCE
+          currency: {currency}
+          shippingDestination: {shippingDestination}
+          limit: {limit}
+          offset: {offset}
+          sort: {sort}
           facets: []
         }}) {{
           total
@@ -119,19 +136,27 @@ def get_product_query(product_sku: int):
 }}"""
 
 
-def get_search_query(search_term: str, limit: int = 100):
+def get_search_query(search_term: str, limit: int = 100, offset: int = 0, currency: str = 'GBP', shippingDestination: str = 'GB', sort: str = 'RELEVANCE'):
     """
     Build GraphQL query to search for products.
     Returns only product URLs.
+
+    Args:
+        search_term: The search query string
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
+        shippingDestination: Country code for shipping (e.g., 'GB', 'US')
+        sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
     """
     return f"""query Search {{
   search(
     options: {{
-      currency: GBP
-      shippingDestination: GB
+      currency: {currency}
+      shippingDestination: {shippingDestination}
       limit: {limit}
-      offset: 0
-      sort: RELEVANCE
+      offset: {offset}
+      sort: {sort}
       facets: []
     }}
     query: "{search_term}"
@@ -217,7 +242,21 @@ def is_url(input_str: str) -> bool:
     """Check if the input string is a URL."""
     return input_str.startswith('http://') or input_str.startswith('https://')
 
-def fetch_product_ids(url, limit=100):
+def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE'):
+    """
+    Fetch product IDs from a URL or search term.
+
+    Args:
+        url: Either a product list URL or a search term
+        limit: Maximum number of results to return
+        offset: Number of results to skip (for pagination)
+        currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
+        shippingDestination: Country code for shipping (e.g., 'GB', 'US')
+        sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
+
+    Returns:
+        List of product IDs (integers)
+    """
     input_arg = url
     # Determine if input is a URL or search term
     if is_url(input_arg):
@@ -238,7 +277,7 @@ def fetch_product_ids(url, limit=100):
             print("Error: Invalid URL. Must include both domain and path.", file=sys.stderr)
             sys.exit(1)
 
-        response = get_product_list(product_list_path, subsite)
+        response = get_product_list(product_list_path, subsite, limit, offset, currency, shippingDestination, sort)
         product_ids = extract_product_ids_from_list(response)
 
     else:
@@ -246,7 +285,7 @@ def fetch_product_ids(url, limit=100):
         search_term = input_arg
         subsite = 'www.myprotein.com'  # Default to myprotein
 
-        response = get_search_results(search_term, subsite, limit)
+        response = get_search_results(search_term, subsite, limit, offset, currency, shippingDestination, sort)
         product_ids = extract_product_ids_from_search(response)
 
     if not product_ids:
