@@ -244,7 +244,7 @@ def is_url(input_str: str) -> bool:
     """Check if the input string is a URL."""
     return input_str.startswith('http://') or input_str.startswith('https://')
 
-def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE'):
+def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestination='GB', sort='RELEVANCE', subsite='www.myprotein.com'):
     """
     Fetch product IDs from a URL or search term.
 
@@ -255,6 +255,7 @@ def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestinatio
         currency: Currency code (e.g., 'GBP', 'USD', 'EUR')
         shippingDestination: Country code for shipping (e.g., 'GB', 'US')
         sort: Sort order (e.g., 'RELEVANCE', 'PRICE_LOW_TO_HIGH', 'PRICE_HIGH_TO_LOW')
+        subsite: Subsite domain for search queries (default: 'www.myprotein.com', ignored for URL queries)
 
     Returns:
         List of product IDs (integers)
@@ -264,7 +265,7 @@ def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestinatio
     if is_url(input_arg):
         # URL mode - fetch product list
         parsed = urlparse(input_arg)
-        subsite = parsed.netloc
+        url_subsite = parsed.netloc
         product_list_path = parsed.path
 
         # Remove '/c' prefix if present
@@ -275,17 +276,16 @@ def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestinatio
         if product_list_path.endswith('/'):
             product_list_path = product_list_path[:-1]
 
-        if not subsite or not product_list_path:
+        if not url_subsite or not product_list_path:
             print("Error: Invalid URL. Must include both domain and path.", file=sys.stderr)
             sys.exit(1)
 
-        response = get_product_list(product_list_path, subsite, limit, offset, currency, shippingDestination, sort)
+        response = get_product_list(product_list_path, url_subsite, limit, offset, currency, shippingDestination, sort)
         product_ids = extract_product_ids_from_list(response)
 
     else:
-        # Search mode
+        # Search mode - use the subsite parameter
         search_term = input_arg
-        subsite = 'www.myprotein.com'  # Default to myprotein
 
         response = get_search_results(search_term, subsite, limit, offset, currency, shippingDestination, sort)
         product_ids = extract_product_ids_from_search(response)
@@ -325,6 +325,7 @@ Examples:
 
     # Common arguments for pagination and filtering
     def add_common_args(subparser):
+        subparser.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
         subparser.add_argument('--limit', type=int, default=100, help='Maximum number of results (default: 100)')
         subparser.add_argument('--offset', type=int, default=0, help='Number of results to skip (default: 0)')
         subparser.add_argument('--currency', default='GBP', help='Currency code (default: GBP)')
@@ -345,14 +346,12 @@ Examples:
     # get_search_results command
     parser_search = subparsers.add_parser('search', help='Search for products')
     parser_search.add_argument('term', help='Search term')
-    parser_search.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
     parser_search.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
     add_common_args(parser_search)
 
     # get_product_list command
     parser_list = subparsers.add_parser('list', help='Get products from category page')
     parser_list.add_argument('path', help='Product list path (without /c prefix)')
-    parser_list.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
     parser_list.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
     add_common_args(parser_list)
 
@@ -371,7 +370,8 @@ Examples:
                 offset=args.offset,
                 currency=args.currency,
                 shippingDestination=args.shippingDestination,
-                sort=args.sort
+                sort=args.sort,
+                subsite=args.subsite
             )
             print(json.dumps(product_ids, indent=2))
 
