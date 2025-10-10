@@ -15,7 +15,7 @@ The Horizon API is THG's enterprise e-commerce platform GraphQL API. These utili
 
 ### 1. Upload to Writer Agent Builder
 
-In your Writer agent's code editor:
+In your Writer agent's code editor (Little `> Code` button on the bottom left):
 1. Upload `horizon_client.py`
 2. Upload `horizon_fetcher.py`
 
