@@ -407,6 +407,65 @@ else:
     })
 ```
 
+## Command-Line Interface
+
+The `horizon_fetcher.py` script can also be used from the command line for testing and data exploration.
+
+### Available Commands
+
+```bash
+# Get help
+python3 horizon_fetcher.py --help
+
+# Get product IDs from search term or URL
+python3 horizon_fetcher.py ids "whey protein" --limit 20
+python3 horizon_fetcher.py ids "https://www.myprotein.com/c/nutrition/protein/" --limit 50 --offset 50
+
+# Get product details by SKU
+python3 horizon_fetcher.py product 10530943 --subsite www.myprotein.com --pretty
+
+# Search for products
+python3 horizon_fetcher.py search "creatine" --currency USD --shipping US --limit 10 --pretty
+
+# Get products from category page
+python3 horizon_fetcher.py list "nutrition/protein/whey-protein/" --sort PRICE_LOW_TO_HIGH --limit 25
+```
+
+### CLI Options
+
+All commands support the following options where applicable:
+
+- `--limit LIMIT` - Maximum number of results (default: 100)
+- `--offset OFFSET` - Number of results to skip for pagination (default: 0)
+- `--currency CURRENCY` - Currency code like USD, EUR, GBP (default: GBP)
+- `--shipping DESTINATION` - Shipping country code like US, GB, DE (default: GB)
+- `--sort SORT` - Sort order: RELEVANCE, PRICE_LOW_TO_HIGH, PRICE_HIGH_TO_LOW (default: RELEVANCE)
+- `--subsite SUBSITE` - Subsite domain (default: www.myprotein.com)
+- `--pretty` - Pretty-print JSON output
+
+### CLI Examples
+
+**Search with pagination:**
+```bash
+# Get first 10 results
+python3 horizon_fetcher.py ids "protein" --limit 10
+
+# Get next 10 results
+python3 horizon_fetcher.py ids "protein" --limit 10 --offset 10
+```
+
+**Multi-currency product lookup:**
+```bash
+# Get product in USD for US market
+python3 horizon_fetcher.py search "whey protein" --currency USD --shipping US --limit 5 --pretty
+```
+
+**Category browsing:**
+```bash
+# Get products from a category URL
+python3 horizon_fetcher.py ids "https://www.myprotein.com/c/nutrition/vitamins/" --limit 20
+```
+
 ## Support
 
 For issues with:

@@ -1,5 +1,7 @@
 import json
 import re
+import sys
+import argparse
 from urllib.parse import urlparse
 from horizon_client import query_horizon
 
@@ -293,6 +295,130 @@ def get_product_ids(url, limit=100, offset=0, currency='GBP', shippingDestinatio
         sys.exit(1)
 
     return product_ids
+
+
+def main():
+    """Command-line interface for Horizon API utilities."""
+    parser = argparse.ArgumentParser(
+        description='Horizon API command-line utility for fetching product data',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Get product IDs from a search term
+  %(prog)s ids "whey protein" --limit 20
+
+  # Get product IDs from a category URL with pagination
+  %(prog)s ids "https://www.myprotein.com/c/nutrition/protein/" --limit 50 --offset 50
+
+  # Search with custom currency and shipping
+  %(prog)s search "creatine" --currency USD --shipping US --limit 10
+
+  # Get product details by ID
+  %(prog)s product 10530943 --subsite www.myprotein.com
+
+  # Get product list with sorting
+  %(prog)s list "nutrition/protein/whey-protein/" --sort PRICE_LOW_TO_HIGH --limit 25
+        '''
+    )
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+
+    # Common arguments for pagination and filtering
+    def add_common_args(subparser):
+        subparser.add_argument('--limit', type=int, default=100, help='Maximum number of results (default: 100)')
+        subparser.add_argument('--offset', type=int, default=0, help='Number of results to skip (default: 0)')
+        subparser.add_argument('--currency', default='GBP', help='Currency code (default: GBP)')
+        subparser.add_argument('--shipping', dest='shippingDestination', default='GB', help='Shipping destination country code (default: GB)')
+        subparser.add_argument('--sort', default='RELEVANCE', help='Sort order (default: RELEVANCE)')
+
+    # get_product_ids command
+    parser_ids = subparsers.add_parser('ids', help='Get product IDs from URL or search term')
+    parser_ids.add_argument('query', help='Product list URL or search term')
+    add_common_args(parser_ids)
+
+    # get_product_json command
+    parser_product = subparsers.add_parser('product', help='Get product details by SKU')
+    parser_product.add_argument('sku', type=int, help='Product SKU')
+    parser_product.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
+    parser_product.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
+
+    # get_search_results command
+    parser_search = subparsers.add_parser('search', help='Search for products')
+    parser_search.add_argument('term', help='Search term')
+    parser_search.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
+    parser_search.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
+    add_common_args(parser_search)
+
+    # get_product_list command
+    parser_list = subparsers.add_parser('list', help='Get products from category page')
+    parser_list.add_argument('path', help='Product list path (without /c prefix)')
+    parser_list.add_argument('--subsite', default='www.myprotein.com', help='Subsite domain (default: www.myprotein.com)')
+    parser_list.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
+    add_common_args(parser_list)
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    try:
+        if args.command == 'ids':
+            # Get product IDs
+            product_ids = get_product_ids(
+                args.query,
+                limit=args.limit,
+                offset=args.offset,
+                currency=args.currency,
+                shippingDestination=args.shippingDestination,
+                sort=args.sort
+            )
+            print(json.dumps(product_ids, indent=2))
+
+        elif args.command == 'product':
+            # Get product details
+            result = get_product_json(args.sku, args.subsite)
+            if args.pretty:
+                print(json.dumps(json.loads(result), indent=2))
+            else:
+                print(result)
+
+        elif args.command == 'search':
+            # Search for products
+            result = get_search_results(
+                args.term,
+                args.subsite,
+                limit=args.limit,
+                offset=args.offset,
+                currency=args.currency,
+                shippingDestination=args.shippingDestination,
+                sort=args.sort
+            )
+            if args.pretty:
+                print(json.dumps(json.loads(result), indent=2))
+            else:
+                print(result)
+
+        elif args.command == 'list':
+            # Get product list
+            result = get_product_list(
+                args.path,
+                args.subsite,
+                limit=args.limit,
+                offset=args.offset,
+                currency=args.currency,
+                shippingDestination=args.shippingDestination,
+                sort=args.sort
+            )
+            if args.pretty:
+                print(json.dumps(json.loads(result), indent=2))
+            else:
+                print(result)
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

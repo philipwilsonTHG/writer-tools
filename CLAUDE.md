@@ -26,8 +26,8 @@ The codebase consists of two main modules:
 
 - All API functions accept a `subsite` parameter (defaults to `www.myprotein.com`)
 - Product URLs follow pattern: `/p/category/product-name/{product_id}/`
-- GraphQL queries hardcode GBP currency and GB shipping destination
-- Product list queries default to 100 items with RELEVANCE sorting
+- All product retrieval functions support configurable parameters: `limit`, `offset`, `currency`, `shippingDestination`, `sort`
+- Default query parameters: GBP currency, GB shipping destination, RELEVANCE sorting, limit 100
 - Error handling prints to stderr and returns empty lists/exits
 
 ## Horizon API Integration
@@ -118,17 +118,45 @@ See: https://dev.writer.com/agent-builder/python-code
 - `requests`: HTTP client for API calls
 - Standard library: `json`, `re`, `urllib.parse`
 
-## Running
+## Command-Line Interface
 
-Execute scripts directly with Python 3:
+`horizon_fetcher.py` includes a full CLI for testing and data exploration:
+
 ```bash
-python3 horizon_fetcher.py
-python3 horizon_client.py
+# Get help
+python3 horizon_fetcher.py --help
+
+# Get product IDs from search or URL
+python3 horizon_fetcher.py ids "whey protein" --limit 20
+python3 horizon_fetcher.py ids "https://www.myprotein.com/c/nutrition/protein/" --limit 50 --offset 50
+
+# Get product details
+python3 horizon_fetcher.py product 10530943 --pretty
+
+# Search with options
+python3 horizon_fetcher.py search "creatine" --currency USD --shipping US --limit 10 --pretty
+
+# Get product list
+python3 horizon_fetcher.py list "nutrition/protein/whey-protein/" --sort PRICE_LOW_TO_HIGH --limit 25
 ```
+
+**Available options:**
+- `--limit` - Maximum results (default: 100)
+- `--offset` - Pagination offset (default: 0)
+- `--currency` - Currency code (default: GBP)
+- `--shipping` - Shipping country code (default: GB)
+- `--sort` - Sort order (default: RELEVANCE)
+- `--subsite` - Subsite domain (default: www.myprotein.com)
+- `--pretty` - Pretty-print JSON output
 
 ## Testing
 
-Run individual Python files to test functionality:
+Test individual functions:
 ```bash
 python3 -c "from horizon_client import query_horizon; print(query_horizon('query { __typename }', 'www.myprotein.com'))"
+```
+
+Or use the CLI for end-to-end testing:
+```bash
+python3 horizon_fetcher.py ids "test search" --limit 5
 ```
